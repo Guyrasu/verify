@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Formatador de Mensagem e Assinatura PGP</title>
+</head>
+<body>
+    <h1>Formatador de Mensagem e Assinatura PGP</h1>
+    <p>Insira o texto com mensagem e assinatura mal formatada na área abaixo. O resultado será exibido no formato corrigido.</p>
+    <textarea id="inputText" rows="10" cols="60" placeholder="Cole a mensagem com a assinatura PGP aqui (ex.: Teste -----BEGIN PGP SIGNATURE----- [conteúdo] -----END PGP SIGNATURE-----)"></textarea><br><br>
+    <button id="formatBtn">Formatar</button>
+    <p id="result"></p>
+    
+    <script>
+        // Função para formatar assinatura mal formatada (inline ou multilinha)
+        function formatArmoredSignature(armoredText) {
+            const beginMatch = armoredText.match(/-----BEGIN PGP SIGNATURE-----/i);
+            if (!beginMatch) {
+                throw new Error('Bloco de assinatura PGP não encontrado.');
+            }
+            const start = beginMatch.index;
+            const endMatch = armoredText.match(/-----END PGP SIGNATURE-----/i);
+            if (!endMatch || endMatch.index < start) {
+                throw new Error('Marcador de fim não encontrado.');
+            }
+            const end = endMatch.index;
+            let content = armoredText.substring(start + beginMatch[0].length, end).trim();
+            // Remove todos os espaços em branco e quebras de linha
+            content = content.replace(/\s+/g, '');
+            if (content === '') {
+                throw new Error('Conteúdo da assinatura inválido.');
+            }
+            // Separar dados e checksum (últimos 5 caracteres se começarem com '=')
+            let data = content;
+            let checksum = null;
+            if (content.length >= 5 && content.slice(-5)[0] === '=') {
+                checksum = content.slice(-5);
+                data = content.slice(0, -5);
+            }
+            // Formatar dados em linhas de 64 caracteres
+            let formattedData = '';
+            for (let i = 0; i < data.length; i += 64) {
+                formattedData += data.substring(i, i + 64) + '\n';
+            }
+            formattedData = formattedData.trim(); // Remove \n final dos dados
+            // Construir bloco com linha em branco após header
+            let armored = `-----BEGIN PGP SIGNATURE-----\n\n${formattedData}`;
+            if (checksum) {
+                armored += `\n${checksum}`;
+            }
+            armored += `\n-----END PGP SIGNATURE-----`;
+            return armored;
+        }
+
+        // Event listener para o botão de formatação
+        document.getElementById('formatBtn').addEventListener('click', () => {
+            const input = document.getElementById('inputText').value;
+            const signatureStart = input.indexOf('-----BEGIN PGP SIGNATURE-----');
+            if (signatureStart === -1) {
+                document.getElementById('result').innerHTML = '<p style="color: red;">Assinatura não encontrada!</p>';
+                return;
+            }
+            const messageText = input.substring(0, signatureStart).trim();
+            let signatureArmored = input.substring(signatureStart).trim();
+            try {
+                // Aplicar formatação à assinatura
+                const formattedSignature = formatArmoredSignature(signatureArmored);
+                // Construir texto final: mensagem + nova linha + assinatura formatada
+                const formattedOutput = messageText + '\n' + formattedSignature;
+                // Exibir em textarea readonly
+                const resultArea = document.createElement('textarea');
+                resultArea.id = 'outputText';
+                resultArea.rows = 15;
+                resultArea.cols = 60;
+                resultArea.value = formattedOutput;
+                resultArea.readOnly = true;
+                resultArea.style.width = '100%';
+                resultArea.style.border = '1px solid #ccc';
+                resultArea.style.padding = '10px';
+                resultArea.onclick = () => {
+                    navigator.clipboard.writeText(resultArea.value).then(() => {
+                        alert('Texto copiado para a área de transferência!');
+                    }).catch(err => {
+                        console.error('Erro ao copiar: ', err);
+                        alert('Erro ao copiar o texto.');
+                    });
+                };
+                // Adicionar instrução de clique
+                const instruction = document.createElement('p');
+                instruction.textContent = 'Clique na área abaixo para copiar o texto formatado.';
+                instruction.style.fontStyle = 'italic';
+                // Limpar e adicionar ao DOM
+                document.getElementById('result').innerHTML = '';
+                document.getElementById('result').appendChild(instruction);
+                document.getElementById('result').appendChild(resultArea);
+            } catch (err) {
+                document.getElementById('result').innerHTML = `<p style="color: red;">Erro: ${err.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
