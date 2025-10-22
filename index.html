@@ -1,28 +1,96 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <title>Verificador de Mensagem PGP</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verificador de Mensagem PGP</title>
+
+<style>
+    body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: #f3f4f6;
+        color: #222;
+    }
+
+    h1 {
+        font-size: 1.5em;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    textarea {
+        width: 100%;
+        height: 40vh;
+        padding: 10px;
+        font-family: monospace;
+        font-size: 14px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        resize: vertical;
+        box-sizing: border-box;
+    }
+
+    button {
+        width: 100%;
+        padding: 14px;
+        font-size: 16px;
+        margin-top: 10px;
+        border: none;
+        border-radius: 8px;
+        background-color: #2563eb;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+    button:hover {
+        background-color: #1e40af;
+    }
+
+    p#result {
+        margin-top: 20px;
+        font-size: 1.1em;
+        text-align: center;
+        word-break: break-word;
+    }
+
+    @media (max-width: 600px) {
+        h1 {
+            font-size: 1.3em;
+        }
+
+        button {
+            font-size: 15px;
+        }
+
+        textarea {
+            height: 50vh;
+        }
+    }
+</style>
 </head>
+
 <body>
     <h1>Verificador de Mensagem PGP</h1>
-    <textarea id="inputText" rows="10" cols="60" placeholder="Cole a mensagem com a assinatura PGP aqui"></textarea><br><br>
+
+    <textarea id="inputText" placeholder="Cole a mensagem com a assinatura PGP aqui"></textarea>
     <button id="verifyBtn">Verificar Assinatura</button>
     <p id="result"></p>
-    
-    <!-- Carregamento do arquivo local openpgp.min.js como script global -->
+
+    <!-- Arquivo local openpgp.min.js -->
     <script src="openpgp.min.js"></script>
-    
+
     <script>
-        // Verificação se a biblioteca foi carregada corretamente
         if (typeof openpgp === 'undefined') {
-            document.getElementById('result').textContent = 'Erro: Biblioteca OpenPGP não carregada. Verifique o caminho do arquivo openpgp.min.js.';
+            document.getElementById('result').textContent =
+                'Erro: Biblioteca OpenPGP não carregada. Verifique o caminho do arquivo openpgp.min.js.';
             throw new Error('OpenPGP não disponível');
         }
-        
-        // Chave pública embutida (certifique-se de que está completa; a fornecida parece truncada)
+
         const pubKeyArmored = `-----BEGIN PGP PUBLIC KEY BLOCK-----
-        
 mDMEaOWjfhYJKwYBBAHaRw8BAQdALLFofYkhzgT7mLc6hDUvhErkAdgVVG2ssKvd
 ErvKkN60G0d1eXJhc3UgPGd1eXJhc3VAZ21haWwuY29tPoiTBBMWCgA7FiEEQiQ5
 jHPxpgf5mv6ZHlXjLOTQ8pkFAmjlo34CGwMFCwkIBwICIgIGFQoJCAsCBBYCAwEC
@@ -34,7 +102,7 @@ LOTQ8pluvgD/TyBqzHOZNbQbSbGEK9+U7expuUDdIrtyX5MrqaLHxFUBAK8mrjWM
 kEIa9EoYr8JEnX+VFP+Gt67cZUgkCcdC7TIL
 =uR1x
 -----END PGP PUBLIC KEY BLOCK-----`;
-        
+
         document.getElementById('verifyBtn').addEventListener('click', async () => {
             const input = document.getElementById('inputText').value;
             const signatureStart = input.indexOf('-----BEGIN PGP SIGNATURE-----');
@@ -42,25 +110,28 @@ kEIa9EoYr8JEnX+VFP+Gt67cZUgkCcdC7TIL
                 document.getElementById('result').textContent = "Assinatura não encontrada!";
                 return;
             }
+
             const messageText = input.substring(0, signatureStart).trim();
             const signatureArmored = input.substring(signatureStart).trim();
+
             try {
                 const publicKey = await openpgp.readKey({ armoredKey: pubKeyArmored });
                 const signature = await openpgp.readSignature({ armoredSignature: signatureArmored });
                 const message = await openpgp.createMessage({ text: messageText });
+
                 const verificationResult = await openpgp.verify({
                     message,
                     signature,
                     verificationKeys: publicKey
                 });
-                
-                // Verificação da Promise 'verified' com try/catch para compatibilidade com v6.x
+
                 const { verified } = verificationResult.signatures[0];
                 try {
                     await verified;
                     document.getElementById('result').textContent = "✅ Assinatura válida!";
                 } catch (verificationError) {
-                    document.getElementById('result').textContent = "❌ Assinatura inválida: " + verificationError.message;
+                    document.getElementById('result').textContent =
+                        "❌ Assinatura inválida: " + verificationError.message;
                 }
             } catch (err) {
                 document.getElementById('result').textContent = "Erro: " + err.message;
